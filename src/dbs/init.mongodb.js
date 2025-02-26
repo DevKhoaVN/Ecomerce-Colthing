@@ -1,4 +1,7 @@
 const mongoose = require("mongoose");
+const {
+  db: { host, port, dbname },
+} = require("../configs/config.mongodb.js");
 
 // singleton connect to database
 
@@ -9,8 +12,12 @@ class Database {
 
   connect(type = "mongodb") {
     mongoose
-      .connect("mongodb://localhost:27017")
-      .then((_) => console.log("connect to mongodb sucess"))
+      .connect(`mongodb://${host}:${port}`) // "mongodb://localhost:27017"
+      .then((_) =>
+        console.log(
+          "connect to mongodb sucess" + `mongodb: ${host}:${port}:${dbname}`
+        )
+      )
       .catch((_) => console.log("connect to mongodb failure"));
   }
 

@@ -3,11 +3,14 @@ const os = require("os");
 const process = require("process");
 
 const _Timers = 5000;
+
+// count the number of connecttion to mongodb
 const countConnect = () => {
   const numberConnect = mongoose.connections.length;
   return console.log(`Connected to ${numberConnect}`);
 };
 
+//check overload connect to mongodb
 const checkOverLoadConnect = () => {
   setInterval(() => {
     const numberConnect = mongoose.connections.length;
