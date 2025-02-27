@@ -3,13 +3,13 @@ const { KeyTokenService } = require("./keyToken.service");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const { createTokenPair } = require("../auth/authUtils");
-
+const jwt = require("jsonwebtoken");
 const { getInforData } = require("../utils/index");
 const {
   NotFoundError,
   ConflictError,
   BadRequestError,
-  AuthencationError,
+  UnauthorizedError,
 } = require("../core/error.respone");
 const findByEmail = require("./shop.service");
 const saltRounds = 10;
@@ -113,11 +113,12 @@ class AcessService {
     const privateKey = crypto.randomBytes(64).toString("hex");
 
     const tokens = await createTokenPair({
-      payload: { userId: foundEmailShop._id },
+      payload: { userId: foundEmailShop._id, email },
       publicKey,
       privateKey,
     });
 
+    console.log("resssss: " + tokens.refreshToken);
     console.log("object :" + foundEmailShop._id);
     await KeyTokenService.createKeyTokenService(
       foundEmailShop._id,
@@ -141,16 +142,61 @@ class AcessService {
     return delKey;
   }
 
-  async handleRefreshToken(refreshToken) 
-  {
-    const foundToken = await.KeyTokenService.findByRefreshToken(refreshToken);
+  async handleRefreshToken(refreshToken) {
+    console.log("heloooo");
+    // check refresh token reused
+    const foundToken = await KeyTokenService.findByRefreshTokenUsed(
+      refreshToken
+    );
 
-    if (foundToken != null)
-    {
-      throw new AuthencationError("Token have issues")
+    if (foundToken) {
+      const { userId, email } = await jwt.verify(
+        refreshToken,
+        foundToken.privatekey
+      );
+      console.log({ userId, email });
+
+      // delete keytoken in keystore
+      await KeyTokenService.removeKeyById(userId);
+      throw new AuthencationError("Something wrong happened ! please re login");
     }
 
-    
+    // not yet used
+    const holderShop = await KeyTokenService.findByRefreshToken(refreshToken);
+    if (!holderShop) {
+      throw new UnauthorizedError("Shop not registered 1");
+    }
+
+    console.log("hodlershop : " + holderShop);
+    // verify token
+    const { userId, email } = await jwt.verify(
+      refreshToken,
+      holderShop.privatekey
+    );
+    console.log(`handle provde refresh token::acount:${userId}-${email}`);
+
+    //check email exists
+
+    const foundEmailShop = await findByEmail({ email });
+    if (!foundEmailShop) throw new UnauthorizedError("Shop not registered 2");
+
+    // create new pair of key
+    const tokens = await createTokenPair({
+      payload: { userId, email },
+      publicKey: holderShop.publickey,
+      privateKey: holderShop.privatekey,
+    });
+
+    //update tpken
+
+    await foundEmailShop.updateOne({
+      $set: {
+        refreshToken: tokens.refreshToken,
+      },
+      $addToSet: {
+        refreshTokenUsed: refreshToken,
+      },
+    });
   }
 }
 

@@ -20,17 +20,20 @@ class KeyTokenService {
           publickey: publicKey, // ✅ Đúng với schema
           privatekey: privateKey,
           refeshToken: refreshToken, // ✅ Đúng với schema
-          updatedAt: new Date(),
         },
         $setOnInsert: {
           refeshTokenUsed: [],
         },
       };
 
-      const result = await keyTokenModel.updateOne({ user: userId }, update, {
-        upsert: true,
-        new: true,
-      });
+      const result = await keyTokenModel.findOneAndUpdate(
+        { user: userId },
+        update,
+        {
+          upsert: true,
+          new: true,
+        }
+      );
 
       if (result.modifiedCount > 0) {
         console.log("✅ Token successfully updated");
@@ -57,6 +60,9 @@ class KeyTokenService {
 
   static async findByRefreshTokenUsed(refreshToken) {
     return await keyTokenModel.findOne({ refeshTokenUsed: refreshToken });
+  }
+  static async findByRefreshToken(refreshToken) {
+    return await keyTokenModel.findOne({ refeshToken: refreshToken });
   }
 }
 
